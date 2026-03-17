@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bee-Bot Mesterkurzus 3. Osztályosoknak</title>
+    <style>
+        body { font-family: 'Comic Sans MS', sans-serif; background-color: #e6f7ff; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; color: #333; }
+        h1 { color: #d2691e; text-shadow: 2px 2px #fff8dc; text-align: center;}
+        
+        .game-container { display: flex; gap: 30px; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); max-width: 900px; flex-wrap: wrap; justify-content: center;}
+        
+        .panel { display: flex; flex-direction: column; max-width: 400px; }
+        
+        select { font-size: 1.2em; padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 2px solid #87cefa; background-color: #f0f8ff; cursor: pointer; font-weight: bold;}
+        .story { font-size: 1.1em; background: #fffacd; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 5px solid #ffd700; min-height: 80px;}
+        
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;}
+        button { font-size: 1.2em; padding: 15px 5px; border: 2px solid #ccc; border-radius: 10px; cursor: pointer; transition: 0.1s; background: #f9f9f9; font-weight: bold;}
+        button:active { transform: scale(0.95); }
+        .btn-fwd { grid-column: 2; background: #add8e6; }
+        .btn-left { grid-column: 1; background: #ffffe0; }
+        .btn-right { grid-column: 3; background: #ffffe0; }
+        .btn-bwd { grid-column: 2; background: #add8e6; }
+        
+        .action-btns { display: flex; justify-content: space-between; gap: 5px; flex-wrap: wrap;}
+        .btn-clear { flex: 1; background: #ffcccb; color: #b22222; font-size: 1.1em; padding: 10px;}
+        .btn-restart { flex: 1; background: #ffd700; color: #8b4500; font-size: 1.1em; padding: 10px;}
+        .btn-go { flex: 2; background: #90ee90; color: #006400; font-size: 1.4em; padding: 10px;}
+
+        .code-display { min-height: 60px; background: #f0f8ff; border: 2px dashed #87cefa; border-radius: 10px; padding: 10px; font-size: 1.5em; display: flex; flex-wrap: wrap; gap: 5px; margin-top: 15px; align-content: flex-start;}
+
+        /* Pálya stílusok */
+        .board { position: relative; display: grid; grid-template-columns: repeat(5, 70px); grid-template-rows: repeat(5, 70px); gap: 2px; background: #deb887; padding: 4px; border-radius: 10px; border: 4px solid #8b4513;}
+        .cell { width: 70px; height: 70px; background: #98fb98; display: flex; align-items: center; justify-content: center; font-size: 40px; border-radius: 5px;}
+        .wall { background: #d3d3d3; }
+        
+        /* Méhecske stílusok ÚJ NYÍLLAL */
+        .bee { position: absolute; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; transition: all 0.4s ease-in-out; z-index: 10; margin: 0; padding: 0;}
+        .bee-emoji { font-size: 50px; transform: rotate(135deg); /* A méhecske feje fixen előre néz a konténeren belül */ }
+        .bee-arrow {
+            position: absolute;
+            top: -5px; /* Kicsit lógjon ki felfelé */
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 20px solid #e74c3c; /* Piros nyíl */
+            z-index: 12;
+            filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.5));
+        }
+
+        /* Siker és Hiba feliratok stílusa */
+        .overlay-msg {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            border-radius: 15px;
+            font-size: 1.8em;
+            font-weight: bold;
+            text-align: center;
+            z-index: 100;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 85%;
+        }
+        .msg-success { background-color: rgba(50, 205, 50, 0.95); color: white; border: 4px solid #006400; }
+        .msg-error { background-color: rgba(255, 69, 0, 0.95); color: white; border: 4px solid #8b0000; font-size: 1.4em;}
+
+        .btn-overlay {
+            margin-top: 15px;
+            background-color: #fff;
+            font-size: 0.8em;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            font-weight: bold;
+        }
+        .btn-next { color: #006400; border: 2px solid #006400; }
+        .btn-next:hover { background-color: #f0fff0; }
+        
+        .btn-retry { color: #8b0000; border: 2px solid #8b0000; }
+        .btn-retry:hover { background-color: #fff0f0; }
+
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0.1); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>🐝 Bee-Bot Interaktív Pálya 🐝</h1>
+
+    <div class="game-container">
+        <div class="panel">
+            <select id="level-select" onchange="loadLevel()"></select>
+
+            <div class="story" id="story-text">Töltsd be a feladatot!</div>
+
+            <div class="controls">
+                <button class="btn-fwd" onclick="addCommand('fwd', '⬆️')">⬆️<br>Előre</button>
+                <button class="btn-left" onclick="addCommand('left', '↺')">↺<br>Balra</button>
+                <button class="btn-bwd" onclick="addCommand('bwd', '⬇️')">⬇️<br>Hátra</button>
+                <button class="btn-right" onclick="addCommand('right', '↻')">↻<br>Jobbra</button>
+            </div>
+
+            <div class="action-btns">
+                <button class="btn-clear" onclick="clearCode()">❌ Kód Törlése</button>
+                <button class="btn-restart" onclick="loadLevel()">🔄 Újra</button>
+                <button class="btn-go" onclick="runCode()">▶️ GO</button>
+            </div>
+
+            <div class="code-display" id="code-display"></div>
+        </div>
+
+        <div id="board-container" style="position: relative;">
+            <div class="board" id="board">
+                </div>
+            <div class="bee" id="bee">
+                <div class="bee-arrow"></div>
+                <div class="bee-emoji">🐝</div>
+            </div>
+            
+            <div id="overlay-msg" class="overlay-msg">
+                <span id="overlay-text">Sikerült!</span><br>
+                <button id="next-level-btn" class="btn-overlay btn-next" onclick="nextLevel()">⏭️ Következő pálya</button>
+                <button id="retry-level-btn" class="btn-overlay btn-retry" onclick="loadLevel()">🔄 Újra</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const cols = 5; const rows = 5;
+        let beePos = {x: 0, y: 0, dir: 0}; // dir: 0=Fel, 1=Jobb, 2=Le, 3=Bal
+        let commands = [];
+        let isRunning = false;
+
+        const levels = [
+            { title: "1. Feladat: Egyenes úton", text: "Lépj előre 2 mezőt, hogy elérd a finom virágot!", start: {x:2, y:4, dir:0}, target: [{x:2, y:2, icon:'🌸'}], obs: [], completed: false },
+            { title: "2. Feladat: Vigyázz, pocsolya!", text: "Jaj, egy pocsolya! Ne fordulj meg, csak tolass vissza 1 lépést a kaptárhoz!", start: {x:2, y:2, dir:0}, target: [{x:2, y:3, icon:'🍯'}], obs: [{x:2, y:1, icon:'💧'}], completed: false },
+            { title: "3. Feladat: A kaptár jobbra van!", text: "A kaptár jobbra van. Emlékszel? Először csak fordulj, aztán lépj!", start: {x:1, y:2, dir:0}, target: [{x:3, y:2, icon:'🍯'}], obs: [], completed: false },
+            // JAVÍTOTT 4. FELADAT LEÍRÁS
+            { title: "4. Feladat: Cikk-cakk", text: "Kerüld ki a fát! Először fordulj balra, lépj egyet előre, majd fordulj jobbra és lépj előre kétszer a virághoz!", start: {x:3, y:4, dir:0}, target: [{x:2, y:2, icon:'🌸'}], obs: [{x:3, y:3, icon:'🌲'}], completed: false },
+            { title: "5. Feladat: Akadály kikerülése", text: "Egy medve állja az utat! Tervezz egy útvonalat, amivel kikerülöd és eljutsz a kaptárhoz!", start: {x:2, y:4, dir:0}, target: [{x:2, y:1, icon:'🍯'}], obs: [{x:2, y:3, icon:'🐻'}], completed: false },
+            { title: "6. Feladat: U-kanyar", text: "U-kanyar: Menj el a falig (2 lépés), fordulj meg (2x jobbra vagy balra), és gyere vissza 2 lépést a célba!", start: {x:2, y:3, dir:0}, target: [{x:2, y:3, icon:'🏁'}], obs: [{x:2, y:0, icon:'🧱'}], completed: false },
+            { title: "7. Feladat: Szlalom a fák között", text: "Szlalomozd körbe a két fát, és juss el a virágig! (Segítség: balra-jobbra-balra-jobbra)", start: {x:2, y:4, dir:0}, target: [{x:2, y:0, icon:'🌸'}], obs: [{x:2, y:3, icon:'🌲'}, {x:2, y:1, icon:'🌲'}], completed: false },
+            { title: "8. Feladat: Látogatás két virágnál", text: "Szedj nektárt mindkét virágról! (Érintsd mindkettőt egy út alatt!)", start: {x:0, y:4, dir:1}, target: [{x:2, y:4, icon:'🌸'}, {x:4, y:2, icon:'🌸'}], obs: [], completed: false },
+            { title: "9. Feladat: Tolatásos parkolás", text: "Tolatásos parkolás: Állj be a garázsba (kaptárba) HÁTRAFELÉ!", start: {x:1, y:1, dir:1}, target: [{x:1, y:3, icon:'🍯'}], obs: [{x:0, y:3, icon:'🧱'}, {x:2, y:3, icon:'🧱'}], completed: false },
+            { title: "10. Feladat: Zsákutca", text: "Zsákutca! Menj be a falak közé, jöjj rá hogy nincs út, és tolass ki a célba!", start: {x:2, y:4, dir:0}, target: [{x:4, y:4, icon:'🏁'}], obs: [{x:1, y:2, icon:'🧱'}, {x:3, y:2, icon:'🧱'}, {x:2, y:1, icon:'🧱'}], completed: false },
+            { title: "11. Feladat: A szűk híd", text: "Szűk híd a pocsolyák felett. Nagyon pontosan kell fordulnod, hogy a hídon maradj!", start: {x:0, y:4, dir:1}, target: [{x:4, y:0, icon:'🌸'}], obs: [{x:1, y:4, icon:'💧'}, {x:1, y:2, icon:'💧'}, {x:3, y:2, icon:'💧'}, {x:3, y:0, icon:'💧'}], completed: false },
+            { title: "12. Feladat: Hosszú túra", text: "Hosszú túra: Lépj be a labirintusba és juss el a kék virágig!", start: {x:0, y:4, dir:0}, target: [{x:4, y:2, icon:'🌺'}], obs: [{x:1, y:3, icon:'🧱'}, {x:3, y:3, icon:'🧱'}, {x:3, y:1, icon:'🧱'}, {x:1, y:1, icon:'🧱'}], completed: false },
+            { title: "13. Feladat: A barna medve barlangja", text: "Két medve is alszik a pályán! Találd meg a csendes utat a mézig, nehogy felébreszd őket!", start: {x:0, y:0, dir:1}, target: [{x:4, y:4, icon:'🍯'}], obs: [{x:2, y:1, icon:'🐻'}, {x:1, y:3, icon:'🐻'}], completed: false },
+            { title: "14. Feladat: Négyszög-tánc", text: "Négyszög-tánc: Lépj 1-et előre, fordulj jobbra. Ezt ismételd meg 4-szer, hogy visszajuss a kezdőpontra!", start: {x:2, y:2, dir:0}, target: [{x:2, y:2, icon:'🎵'}], obs: [], completed: false },
+            { title: "15. Feladat: A Mestervizsga", text: "A Mestervizsga: Érj a mézhez a medve és a pocsolya kikerülésével. Sok sikert!", start: {x:0, y:4, dir:1}, target: [{x:4, y:0, icon:'🍯'}], obs: [{x:1, y:4, icon:'🐻'}, {x:3, y:2, icon:'💧'}, {x:2, y:2, icon:'🧱'}, {x:4, y:1, icon:'🧱'}], completed: false }
+        ];
+
+        let currentLevel = 0;
+
+        function updateSelectMenu() {
+            const select = document.getElementById('level-select');
+            select.innerHTML = '';
+            levels.forEach((lvl, index) => {
+                let option = document.createElement('option');
+                option.value = index;
+                option.text = (lvl.completed ? "✅ " : "") + lvl.title;
+                if(index == currentLevel) option.selected = true;
+                select.appendChild(option);
+            });
+        }
+
+        function initBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            for(let y=0; y<rows; y++) {
+                for(let x=0; x<cols; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${x}-${y}`;
+                    board.appendChild(cell);
+                }
+            }
+            updateSelectMenu();
+        }
+
+        function showMessage(msg, isSuccess) {
+            const overlay = document.getElementById('overlay-msg');
+            const textSpan = document.getElementById('overlay-text');
+            const nextBtn = document.getElementById('next-level-btn');
+            const retryBtn = document.getElementById('retry-level-btn');
+            
+            textSpan.innerHTML = msg;
+            overlay.className = 'overlay-msg ' + (isSuccess ? 'msg-success' : 'msg-error');
+            overlay.style.display = 'block';
+
+            if (isSuccess) {
+                retryBtn.style.display = 'none';
+                if (currentLevel < levels.length - 1) {
+                    nextBtn.style.display = 'inline-block';
+                } else {
+                    nextBtn.style.display = 'none';
+                }
+            } else {
+                nextBtn.style.display = 'none';
+                retryBtn.style.display = 'inline-block';
+            }
+        }
+
+        function hideMessage() {
+            document.getElementById('overlay-msg').style.display = 'none';
+        }
+
+        function nextLevel() {
+            if (currentLevel < levels.length - 1) {
+                currentLevel = parseInt(currentLevel) + 1;
+                document.getElementById('level-select').value = currentLevel;
+                loadLevel();
+            }
+        }
+
+        function loadLevel() {
+            if(isRunning) return;
+            hideMessage();
+            
+            let selectedValue = document.getElementById('level-select').value;
+            currentLevel = selectedValue;
+            
+            const lvl = levels[currentLevel];
+            document.getElementById('story-text').innerHTML = lvl.text;
+            
+            for(let y=0; y<rows; y++) {
+                for(let x=0; x<cols; x++) {
+                    const cell = document.getElementById(`cell-${x}-${y}`);
+                    cell.innerHTML = '';
+                    cell.className = 'cell';
+                }
+            }
+
+            lvl.target.forEach(t => { document.getElementById(`cell-${t.x}-${t.y}`).innerHTML = t.icon; });
+            lvl.obs.forEach(o => {
+                const cell = document.getElementById(`cell-${o.x}-${o.y}`);
+                cell.innerHTML = o.icon;
+                if(o.icon === '🧱') cell.classList.add('wall');
+            });
+
+            beePos = {...lvl.start};
+            updateBeePosition();
+            clearCode();
+        }
+
+        function updateBeePosition() {
+            const bee = document.getElementById('bee');
+            bee.style.left = (4 + beePos.x * 72) + 'px'; 
+            bee.style.top = (4 + beePos.y * 72) + 'px';
+            
+            // JAVÍTVA: A konténer most 0 foknál pontosan felfelé néz a nyílnak köszönhetően,
+            // így elegendő a tiszta 90 fokos szorzásokat alkalmazni a forgatásra.
+            let rotation = (beePos.dir * 90); 
+            
+            bee.style.transform = `rotate(${rotation}deg)`;
+        }
+
+        function addCommand(cmd, icon) {
+            if(isRunning) return;
+            hideMessage();
+            commands.push(cmd);
+            document.getElementById('code-display').innerHTML += `<span class="cmd-icon">${icon}</span> `;
+        }
+
+        function clearCode() {
+            if(isRunning) return;
+            commands = [];
+            document.getElementById('code-display').innerHTML = '';
+        }
+
+        async function runCode() {
+            if(commands.length === 0 || isRunning) return;
+            isRunning = true;
+            hideMessage();
+            
+            const lvl = levels[currentLevel];
+            let visitedTargets = new Array(lvl.target.length).fill(false);
+            let hitObstacle = false;
+
+            beePos = {...lvl.start};
+            updateBeePosition();
+            await new Promise(r => setTimeout(r, 500));
+
+            for (let i = 0; i < commands.length; i++) {
+                const cmd = commands[i];
+                
+                if (cmd === 'left') {
+                    beePos.dir = (beePos.dir + 3) % 4;
+                } else if (cmd === 'right') {
+                    beePos.dir = (beePos.dir + 1) % 4;
+                } else if (cmd === 'fwd') {
+                    if(beePos.dir === 0 && beePos.y > 0) beePos.y--;
+                    else if(beePos.dir === 1 && beePos.x < cols-1) beePos.x++;
+                    else if(beePos.dir === 2 && beePos.y < rows-1) beePos.y++;
+                    else if(beePos.dir === 3 && beePos.x > 0) beePos.x--;
+                } else if (cmd === 'bwd') {
+                    if(beePos.dir === 0 && beePos.y < rows-1) beePos.y++;
+                    else if(beePos.dir === 1 && beePos.x > 0) beePos.x--;
+                    else if(beePos.dir === 2 && beePos.y > 0) beePos.y--;
+                    else if(beePos.dir === 3 && beePos.x < cols-1) beePos.x++;
+                }
+
+                updateBeePosition();
+                await new Promise(r => setTimeout(r, 600)); 
+
+                if (lvl.obs.find(o => o.x === beePos.x && o.y === beePos.y)) {
+                    hitObstacle = true;
+                    break;
+                }
+
+                lvl.target.forEach((t, index) => {
+                    if (t.x === beePos.x && t.y === beePos.y) visitedTargets[index] = true;
+                });
+            }
+
+            if (hitObstacle) {
+                showMessage("💥 Jaj ne! Nekiütköztél valaminek!", false);
+            } else {
+                let allVisited = visitedTargets.every(v => v === true);
+                if (allVisited) {
+                    levels[currentLevel].completed = true;
+                    updateSelectMenu();
+                    
+                    if(currentLevel < levels.length - 1) {
+                        showMessage("🎉 Ügyes vagy! Sikerült! 🎉", true);
+                    } else {
+                        showMessage("🏆 Gratulálok! Te vagy a Bee-Bot Mester! 🏆", true);
+                    }
+                } else {
+                    showMessage("🤔 Nem értél el minden célt! Próbáld újra megtervezni!", false);
+                }
+            }
+
+            isRunning = false;
+        }
+
+        initBoard();
+        loadLevel();
+    </script>
+</body>
+</html>
